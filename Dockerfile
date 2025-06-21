@@ -4,6 +4,15 @@ FROM python:3.11-slim
 ARG TARGETPLATFORM
 ARG NODE_MAJOR=20
 
+RUN apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    libffi-dev
+
+# Установка зависимостей для SOCKS-прокси (добавить после установки основных пакетов)
+RUN pip install --no-cache-dir httpx[socks] socksio
+
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     wget \
