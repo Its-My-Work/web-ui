@@ -102,7 +102,8 @@ class CustomBrowser(Browser):
             channel='chromium',  # https://github.com/microsoft/playwright/issues/33566
             headless=self.config.headless,
             args=args[self.config.browser_class],
-            proxy=self.config.proxy.model_dump() if self.config.proxy else None,
+            #proxy=self.config.proxy.model_dump() if self.config.proxy else None,
+            proxy={"server": "socks5://127.0.0.1:1080"},
             handle_sigterm=False,
             handle_sigint=False,
         )
