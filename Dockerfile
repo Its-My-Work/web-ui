@@ -6,13 +6,11 @@ ARG NODE_MAJOR=20
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      build-essential \
-      python3-dev \
-      libffi-dev && \
+      build-essential python3-dev libffi-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Установка зависимостей для SOCKS-прокси (добавить после установки основных пакетов)
-RUN pip install --no-cache-dir httpx[socks] socksio
+
 
 
 # Install system dependencies
@@ -80,6 +78,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir httpx[socks] socksio
 
 # Install playwright browsers and dependencies
 # playwright documentation suggests PLAYWRIGHT_BROWSERS_PATH is still relevant
