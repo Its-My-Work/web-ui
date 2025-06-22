@@ -43,7 +43,7 @@ class CustomBrowser(Browser):
             screen_size = {"width": 1920, "height": 1080} if self.config.headless else get_screen_resolution()
             offset_x, offset_y = (0, 0) if self.config.headless else get_window_adjustments()
 
-        # Формируем аргументы для Chromium
+        # Формируем аргументы для Chromium с пользовательским User-Agent
         chrome_args = {
             f"--remote-debugging-port={self.config.chrome_remote_debugging_port}",
             *CHROME_ARGS,
@@ -54,6 +54,8 @@ class CustomBrowser(Browser):
             f"--window-position={offset_x},{offset_y}",
             f"--window-size={screen_size['width']},{screen_size['height']}",
             *self.config.extra_browser_args,
+            # Добавляем пользовательский User-Agent
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         # Исключаем конфликтный порт
