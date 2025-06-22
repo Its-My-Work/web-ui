@@ -1,31 +1,27 @@
 import asyncio
 import pdb
-
-from playwright.async_api import Browser as PlaywrightBrowser
-from playwright.async_api import (
-    BrowserContext as PlaywrightBrowserContext,
-)
-from playwright.async_api import (
-    Playwright,
-    async_playwright,
-)
-from browser_use.browser.browser import Browser, IN_DOCKER
-from browser_use.browser.context import BrowserContext, BrowserContextConfig
-from playwright.async_api import BrowserContext as PlaywrightBrowserContext
+import socket
 import logging
 
+from playwright.async_api import (
+    Playwright,
+    Browser as PlaywrightBrowser,
+)
+from playwright_stealth import stealth_async
+
+from browser_use.browser.browser import Browser, IN_DOCKER
+from browser_use.browser.context import BrowserContextConfig
 from browser_use.browser.chrome import (
     CHROME_ARGS,
-    CHROME_DETERMINISTIC_RENDERING_ARGS,
-    CHROME_DISABLE_SECURITY_ARGS,
     CHROME_DOCKER_ARGS,
     CHROME_HEADLESS_ARGS,
+    CHROME_DISABLE_SECURITY_ARGS,
+    CHROME_DETERMINISTIC_RENDERING_ARGS,
 )
-from browser_use.browser.context import BrowserContext, BrowserContextConfig
-from browser_use.browser.utils.screen_resolution import get_screen_resolution, get_window_adjustments
-from browser_use.utils import time_execution_async
-import socket
-
+from browser_use.browser.utils.screen_resolution import (
+    get_screen_resolution,
+    get_window_adjustments,
+)
 from .custom_context import CustomBrowserContext
 
 logger = logging.getLogger(__name__)
@@ -34,22 +30,20 @@ logger = logging.getLogger(__name__)
 class CustomBrowser(Browser):
 
     async def new_context(self, config: BrowserContextConfig | None = None) -> CustomBrowserContext:
-        """Create a browser context"""
         browser_config = self.config.model_dump() if self.config else {}
         context_config = config.model_dump() if config else {}
-        merged_config = {**browser_config, **context_config}
-        return CustomBrowserContext(config=BrowserContextConfig(**merged_config), browser=self)
+        merged = {**browser_config, **context_config}
+        return CustomBrowserContext(config=BrowserContextConfig(**merged), browser=self)
 
     async def _setup_builtin_browser(self, playwright: Playwright) -> PlaywrightBrowser:
-        """Sets up and returns a Playwright Browser instance with anti-detection measures."""
-        assert self.config.browser_binary_path is None, 'browser_binary_path should be None if trying to use the builtin browsers'
+        assert self.config.browser_binary_path is None, \
+            'browser_binary_path должен быть None для встроенных браузеров'
 
-        # Use the configured window size from new_context_config if available
-        if (
-                not self.config.headless
-                and hasattr(self.config, 'new_context_config')
-                and hasattr(self.config.new_context_config, 'window_width')
-                and hasattr(self.config.new_context_config, 'window_height')
+        # Определяем размер окна
+        if (not self.config.headless
+            and hasattr(self.config, 'new_context_config')
+            and hasattr(self.config.new_context_config, 'window_width')
+            and hasattr(self.config.new_context_config, 'window_height')
         ):
             screen_size = {
                 'width': self.config.new_context_config.window_width,
@@ -63,6 +57,7 @@ class CustomBrowser(Browser):
             screen_size = get_screen_resolution()
             offset_x, offset_y = get_window_adjustments()
 
+        # Формируем аргументы Chrome
         chrome_args = {
             f'--remote-debugging-port={self.config.chrome_remote_debugging_port}',
             *CHROME_ARGS,
@@ -75,36 +70,36 @@ class CustomBrowser(Browser):
             *self.config.extra_browser_args,
         }
 
-        # check if chrome remote debugging port is already taken,
-        # if so remove the remote-debugging-port arg to prevent conflicts
+        # Убираем конфликтный порт, если он занят
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(('localhost', self.config.chrome_remote_debugging_port)) == 0:
                 chrome_args.remove(f'--remote-debugging-port={self.config.chrome_remote_debugging_port}')
 
         browser_class = getattr(playwright, self.config.browser_class)
-        args = {
+        args_map = {
             'chromium': list(chrome_args),
-            'firefox': [
-                *{
-                    '-no-remote',
-                    *self.config.extra_browser_args,
-                }
-            ],
-            'webkit': [
-                *{
-                    '--no-startup-window',
-                    *self.config.extra_browser_args,
-                }
-            ],
+            'firefox': ['-no-remote', *self.config.extra_browser_args],
+            'webkit': ['--no-startup-window', *self.config.extra_browser_args],
         }
 
+        # Запуск браузера с прокси
         browser = await browser_class.launch(
-            channel='chromium',  # https://github.com/microsoft/playwright/issues/33566
+            channel='chromium',
             headless=self.config.headless,
-            args=args[self.config.browser_class],
-            #proxy=self.config.proxy.model_dump() if self.config.proxy else None,
-            proxy={"server": "socks5://127.0.0.1:1080"},
+            args=args_map[self.config.browser_class],
+            proxy={'server': 'socks5://127.0.0.1:1080'},
             handle_sigterm=False,
             handle_sigint=False,
         )
+
+        # Применяем stealth ко всем новым страницам
+        # Оборачиваем метод new_page
+        original_new_page = browser.new_page
+        async def stealth_new_page(*args, **kwargs):
+            page = await original_new_page(*args, **kwargs)
+            await stealth_async(page)
+            return page
+
+        browser.new_page = stealth_new_page  # type: ignore
+
         return browser
