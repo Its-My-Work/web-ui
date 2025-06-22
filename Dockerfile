@@ -6,7 +6,7 @@ ARG NODE_MAJOR=20
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      build-essential python3-dev libffi-dev && \
+      build-essential autossh python3-dev libffi-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Установка зависимостей для SOCKS-прокси (добавить после установки основных пакетов)
@@ -94,8 +94,8 @@ RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
 # RUN playwright install chrome --with-deps
 
 # Alternative: Install Chromium if Google Chrome is problematic in certain environments
-RUN playwright install chromium --with-deps
-
+#RUN playwright install chromium --with-deps
+#RUN playwright install firefox --with-deps
 
 # Copy the application code
 COPY . .
