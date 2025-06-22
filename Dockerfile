@@ -78,7 +78,8 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir httpx[socks] socksio
+RUN pip install --no-cache-dir httpx[socks] socksio playwright_stealth
+
 
 # Install playwright browsers and dependencies
 # playwright documentation suggests PLAYWRIGHT_BROWSERS_PATH is still relevant
