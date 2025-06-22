@@ -95,7 +95,7 @@ RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
 
 # Alternative: Install Chromium if Google Chrome is problematic in certain environments
 #RUN playwright install chromium --with-deps
-#RUN playwright install firefox --with-deps
+RUN playwright install firefox --with-deps
 
 # Copy the application code
 COPY . .
